@@ -1,0 +1,49 @@
+CTF Write-Up — 1810 London Hoax Confession
+Challenge
+
+Decades after the 1810 London hoax, the culprit confessed inside his semi-autobiographical novel.
+SECE{novel_name}
+
+Step 1 — Isolate the historical event (OSINT pivot)
+
+Key terms from the prompt:
+
+1810
+
+London
+
+hoax
+
+later confession
+
+novel
+
+Search logic:
+
+1810 London hoax confession novel
+
+This consistently points to the Berners Street Hoax, a famous mass prank involving hundreds of tradesmen being summoned to a single address.
+
+Step 2 — Identify the culprit
+
+Historical records attribute the hoax to:
+
+Theodore Hook
+
+A British writer known for elaborate practical jokes.
+
+Step 3 — Locate the confession source
+
+Further research on Hook reveals that he later admitted to orchestrating the hoax in his semi-autobiographical novel:
+
+Gilbert Gurney
+
+The novel includes a fictionalized but clear acknowledgment of the prank.
+
+Step 4 — Format the flag
+
+CTF convention replaces spaces with underscores:
+
+SECE{gilbert_gurney}
+Final Answer
+SECE{gilbert_gurney}
