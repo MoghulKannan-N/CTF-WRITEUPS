@@ -1,0 +1,132 @@
+Simplistic Boot2Root Write-Up
+Challenge Overview
+
+Name: Simplistic
+Category: Boot2Root / Linux
+Difficulty: Easy–Medium
+Goal: Obtain root access and retrieve the final flag.
+
+The machine was designed to test understanding of boot-time trust boundaries rather than network exploitation. No remote services were exposed, forcing a shift in mindset from traditional service-based attacks to local/physical access exploitation.
+
+Initial Enumeration
+
+After importing the OVA and booting the machine successfully, basic network enumeration was performed from the attacker (Kali) machine.
+
+ip a
+
+The attacker system was on the 192.168.56.0/24 subnet (VirtualBox host-only network).
+
+A host discovery scan identified the target:
+
+nmap -sn 192.168.56.0/24
+
+Target identified: 192.168.56.100
+
+Service Enumeration
+
+A full TCP scan was executed:
+
+nmap -sC -sV -p- 192.168.56.100
+
+Result:
+
+All ports filtered
+
+No exposed network services
+
+This confirmed that remote exploitation was not the intended entry point.
+
+Local Access Analysis
+
+The VM presented a local TTY login prompt. No credentials were provided in the challenge description.
+
+Testing multiple usernames showed that the login mechanism did not clearly differentiate between valid and invalid users. No successful shell access was obtained via standard authentication.
+
+Given:
+
+No network services
+
+No credentials
+
+Console access available
+
+The attack surface clearly shifted to boot-time misconfiguration.
+
+Bootloader Exploitation (GRUB)
+
+During reboot, the GRUB menu was accessible without any password protection.
+
+This is a critical security issue, as GRUB controls kernel boot parameters.
+
+Steps Taken:
+
+Rebooted the VM
+
+Held Shift to access GNU GRUB
+
+Highlighted the default Ubuntu entry
+
+Pressed e to edit boot parameters
+
+Located the line starting with linux
+
+Appended the following parameter at the end of the line:
+
+init=/bin/bash
+
+Booted using Ctrl + X
+
+Root Shell Access
+
+The system booted directly into a root shell without any authentication.
+
+Indicators:
+
+Prompt: root@(none):/#
+
+Warnings about job control (expected when /bin/bash runs as PID 1)
+
+At this stage, the root filesystem was mounted read-only.
+
+Filesystem Remount
+
+To enable full interaction with the system:
+
+mount -o remount,rw /
+
+This successfully remounted the root filesystem as read-write.
+
+Privilege Verification
+id
+
+Output:
+
+uid=0(root) gid=0(root) groups=0(root)
+
+Confirmed full root privileges.
+
+Flag Retrieval
+
+Standard boot2root convention places the final flag in /root.
+
+ls -l /root
+
+A file named root.txt was found.
+
+cat /root/root.txt
+
+The flag was successfully retrieved.
+
+Root Cause Analysis
+
+This system was vulnerable due to:
+
+Unprotected GRUB bootloader
+
+Ability to edit kernel boot parameters
+
+No disk encryption
+
+Assumption that console/physical access is trusted
+
+By replacing the init process (PID 1) with /bin/bash, the system never reached the authentication or authorization layers.
