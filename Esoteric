@@ -1,0 +1,61 @@
+Challenge: Esoteric
+
+Category: Forensics / Steganography
+
+Overview
+
+The challenge involved a multi-stage hidden data extraction process. The initial artifact was a password-protected ZIP archive that, once cracked, revealed an image file. This image contained steganographically embedded data which ultimately led to a dictionary file holding fragmented flag components. Reconstructing these fragments produced the final flag.
+
+Step 1 — Cracking the ZIP archive
+
+The provided archive was encrypted. A hint suggested the password:
+
+cr@ck_m3
+
+Extraction was performed with:
+
+unzip images.zip
+
+After entering the password, an image file was extracted:
+
+image.jpeg
+Step 2 — Steganographic extraction from the image
+
+The image was analyzed using steghide to identify and extract hidden embedded content.
+
+steghide extract -sf image.jpeg
+
+This produced a hidden file:
+
+dict.txt
+Step 3 — Understanding the extracted data
+
+The dict.txt file contained mappings between unusual words and partial flag segments. Each line associated a sample word with a fragment of the final flag.
+
+Typical structure examples:
+
+zillo = L{
+mittai = O
+...
+
+The full flag was split across multiple lines.
+
+Step 4 — Reconstructing the flag automatically
+
+To extract only the meaningful flag fragments and concatenate them in sequence:
+
+sed 's/.*[=:]//' dict.txt | tr -d ' \n'
+
+This removed the word identifiers and merged all fragments into a single continuous string, revealing the complete flag.
+
+Conclusion
+
+The challenge demonstrated a layered forensics workflow:
+
+Breaking archive encryption using a hinted password
+
+Identifying and extracting steganographic payloads with steghide
+
+Analyzing structured hidden data
+
+Automating reconstruction of fragmented secrets
