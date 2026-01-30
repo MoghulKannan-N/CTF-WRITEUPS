@@ -1,0 +1,81 @@
+Crypto Vault — Write-Up
+Challenge Intro
+
+The Crypto Vault challenge presents itself as a seemingly harmless collection of user notes. At first glance, the data looks like routine credential records—usernames paired with encoded strings. However, the vault refuses to open unless the underlying encryption scheme is correctly understood and reversed. The objective is clear: reconstruct the hidden message by extracting and decoding fragmented data scattered across user entries.
+
+Step-by-step Walkthrough
+1. Initial Observation
+
+Each user (admin, alice, bob, carol, dave) is associated with a suspicious string that visually resembles Base64-encoded data:
+
+admin  EDc6NQ8YZQ0WXBkBbw==
+alice  N0ImBBxcCQIHWwRGAG0=
+bob    NUYMHAAwZgcqH0dRQgFBIDo=
+carol  dxwdLxxeMgVGAitfA0FGZwJQATo=
+dave   LkYKBEcdCQlBDx8BQk8=
+
+
+This immediately suggests a two-stage decoding process:
+
+Base64 decoding
+
+A secondary transformation (likely XOR)
+
+2. Base64 Decoding
+
+Each string was decoded from Base64 into raw bytes. Individually, the decoded outputs appeared as unreadable binary, confirming that Base64 was only the outer layer of obfuscation.
+
+3. Identifying the XOR Cipher
+
+Given the challenge theme (“Crypto Vault”) and common CTF design patterns, an XOR cipher was suspected.
+
+The key used:
+
+CryptoVault2025
+
+
+Each decoded byte sequence was XORed against this key (repeating as necessary).
+
+4. Extracting Flag Fragments
+
+After XORing, each user note revealed a readable fragment of plaintext. These fragments were not standalone but clearly designed to be concatenated in order to form a complete flag.
+
+During this step, minor non-printable artifacts appeared in one fragment. This was resolved by validating:
+
+ASCII printability
+
+leetspeak consistency
+
+semantic coherence
+
+Once normalized, the fragments aligned cleanly.
+
+5. Flag Reconstruction
+
+Combining all recovered fragments produced the final flag:
+
+SECE{w3lc0m3_t0_th3_cr7pt0_v4ult_0f_s3cr3ts_4nd_h1dd3n_m3ss4g3s_m4st3r_h4ck3r}
+
+Lessons Learned
+
+Base64 often acts as camouflage, not encryption.
+
+XOR ciphers are frequently used in CTFs due to their simplicity and reversibility.
+
+Always validate decrypted output for printable ASCII and logical structure.
+
+Fragmented storage across multiple sources is a common tactic to prevent trivial decoding.
+
+Technical Deep Dive
+
+Base64 decoding converts ASCII-safe text back into raw bytes.
+
+XOR encryption relies on bitwise exclusivity:
+
+cipher ⊕ key = plaintext
+
+plaintext ⊕ key = cipher
+
+A repeating-key XOR was used here, making key discovery or guessing critical.
+
+Flag formatting (SECE{...}) provided a strong correctness oracle during reconstruction.
