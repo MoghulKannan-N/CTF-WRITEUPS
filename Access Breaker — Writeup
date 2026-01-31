@@ -1,0 +1,67 @@
+Access Breaker — Writeup
+1. Binary identification
+
+Use file to confirm the executable is a 64-bit ELF.
+
+checksec shows no packing or obfuscation protections.
+
+2. Input handling
+
+The program reads user input from standard input.
+
+A strict length check of 18 characters is applied.
+
+Any input not matching this length is rejected immediately.
+
+3. Validation loop
+
+After passing the length check, the program processes the input byte-by-byte inside a loop.
+
+Each character is transformed before comparison.
+
+4. Transformation logic
+
+For each input byte in, the following operation is performed:
+
+out = ((in ^ edx) + esi) ^ edi
+
+
+Initial register values:
+
+edx = 0x0d
+
+esi = -17
+
+edi = 0x5a
+
+Register updates per iteration:
+
+edx += 7
+
+esi -= 3
+
+edi += 2
+
+5. Comparison
+
+The transformed byte out is compared against a fixed byte array stored in .rodata.
+
+A single mismatch causes the program to print Wrong flag.
+
+6. Reversing the check
+
+The transformation is reversible.
+
+Inverting the logic gives:
+
+in = ((out ^ edi) - esi) ^ edx
+
+
+Applying this to all 18 bytes recovers the original input.
+
+7. Verification
+
+Supplying the recovered string to the binary results in Correct!.
+
+Flag
+SECE{...}
