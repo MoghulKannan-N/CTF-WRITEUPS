@@ -1,0 +1,155 @@
+Shadow Bind — Write-Up
+Challenge Intro
+
+The Shadow Bind challenge presents itself as a lightweight service binary that claims to perform routine integrity validation before execution. When launched, the program reports that no anomalies are detected and exits normally, revealing no obvious secrets.
+
+However, the challenge description hints that the core validation logic is hidden inside a dynamically loaded shared library. Only when a specific internal condition is met does the program deviate from its normal behavior and reveal the flag.
+
+The objective is to reverse both the main executable and its linked library, uncover the hidden verification mechanism, and manipulate it to trigger the concealed execution path.
+
+Step-by-Step Walkthrough
+1. Initial Observation
+
+The challenge provides two files:
+
+shadow_core
+libshadow.so
+
+
+Initial inspection showed that both binaries were stripped and dynamically linked:
+
+file shadow_core libshadow.so
+checksec --file=shadow_core
+checksec --file=libshadow.so
+
+
+The main binary depends directly on libshadow.so and uses a local runpath (.), meaning the shared library is loaded from the current directory.
+
+This immediately suggested that the shared object played a critical role in validation.
+
+2. Runtime Behavior Analysis
+
+To understand runtime behavior, system calls were traced:
+
+strace ./shadow_core
+
+
+The trace revealed a key sequence:
+
+open("/proc/self/exe")
+lseek(12288)
+read(6)
+
+
+This indicates that the program reads its own executable file, seeks to offset 0x3000, and extracts six bytes for verification.
+
+This self-reading behavior strongly suggested a custom integrity check.
+
+3. Reverse Engineering the Validation Logic
+
+The shared library was disassembled for deeper analysis:
+
+objdump -d libshadow.so | less
+
+
+Inside the main validation routine, the following pattern appeared:
+
+call memcmp
+test eax, eax
+jne fail
+
+
+Before the comparison, a hardcoded pointer and length were set:
+
+mov $6, %edx
+lea 0x205f(%rip), %rsi
+
+
+This showed that the library compares:
+
+Six bytes read from shadow_core
+
+Against six bytes stored internally in libshadow.so
+
+Only a perfect match would allow execution to continue into the hidden code path.
+
+4. Extracting the Expected Signature
+
+The comparison bytes were stored in the .rodata section of libshadow.so.
+
+They were extracted using:
+
+dd if=libshadow.so bs=1 skip=$((0x205f)) count=6 | xxd
+
+
+This produced the exact byte sequence required to satisfy the integrity check.
+
+5. Verifying the Executable’s Contents
+
+Next, the bytes currently present in shadow_core were examined:
+
+xxd -s 0x3000 -l 6 shadow_core
+
+
+The extracted values did not match the expected signature, explaining why the hidden path was never triggered under normal execution.
+
+6. Bypassing the Integrity Check
+
+Since the verification relied on a static byte comparison, it could be bypassed by directly patching the executable.
+
+The correct bytes were copied into shadow_core:
+
+dd if=libshadow.so bs=1 skip=$((0x205f)) count=6 \
+| dd of=shadow_core bs=1 seek=12288 conv=notrunc
+
+
+This modification ensured that the runtime memcmp call would return zero, indicating a successful match.
+
+7. Flag Recovery
+
+After patching, the binary was executed again:
+
+chmod +x shadow_core
+./shadow_core
+
+
+This time, the integrity check passed, the hidden routine was activated, and the program revealed the flag.
+
+Lessons Learned
+
+Shared libraries often contain hidden validation logic.
+
+Self-integrity checks using /proc/self/exe are common in reverse engineering challenges.
+
+Static byte comparisons provide weak protection and are easily bypassed.
+
+Runtime tracing tools like strace can quickly reveal hidden verification mechanisms.
+
+Binary patching remains one of the most effective techniques in CTF reversing.
+
+Technical Deep Dive
+
+The validation mechanism relies on a fixed-offset signature check:
+
+The executable reads itself using /proc/self/exe.
+
+It extracts six bytes at offset 0x3000.
+
+These bytes are compared against a hardcoded reference in libshadow.so.
+
+A conditional jump determines whether execution continues normally or enters the secret path.
+
+This approach lacks cryptographic verification and does not protect against file modification, making it vulnerable to direct patching.
+
+Final Exploit
+
+The complete exploit can be performed with a single command:
+
+dd if=libshadow.so bs=1 skip=$((0x205f)) count=6 \
+| dd of=shadow_core bs=1 seek=12288 conv=notrunc && ./shadow_core
+
+Conclusion
+
+By analyzing both runtime behavior and shared library internals, the hidden integrity check was identified and bypassed. Modifying a small section of the executable was sufficient to activate the concealed execution path and retrieve the flag.
+
+This challenge demonstrates how weak self-validation mechanisms can be reversed and exploited through systematic binary analysis.
