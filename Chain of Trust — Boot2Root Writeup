@@ -1,0 +1,56 @@
+Chain of Trust — Boot2Root Writeup
+Challenge Overview
+
+Name: Chain of Trust
+Category: Boot2Root / Linux
+Difficulty: Medium
+Goal: Gain root access and retrieve the flag.
+
+This challenge focuses on boot-time trust assumptions rather than network exploitation. No weak credentials, brute force, or direct privilege escalation paths are present. Success requires understanding how trust is established during system startup and how breaking one assumption can compromise the entire system.
+
+Initial Access
+
+The provided artifact was a VirtualBox OVA. After importing and booting the VM, the system immediately presented a login prompt with no known credentials. Since the attacker has full disk access, this indicates a physical-access threat model, shifting focus to the boot process rather than authentication.
+
+Bootloader Enumeration
+
+On reboot, the GRUB menu was accessible without any password protection. This is a critical trust assumption: the system implicitly trusts the bootloader and anyone who can interact with it.
+
+GRUB allowed editing of kernel boot parameters, which opened the possibility of controlling the execution context before userspace initialization.
+
+Kernel Parameter Abuse
+
+By editing the default boot entry and modifying the kernel command line:
+
+Replaced normal startup with a custom init process
+
+Used:
+
+rw init=/bin/bash
+
+
+This caused the kernel to launch /bin/bash directly as PID 1 instead of systemd. As a result, a root shell was obtained without authentication, since no login manager or PAM stack was ever started.
+
+This is not an exploit, but a consequence of the kernel trusting the bootloader.
+
+Converting Temporary Access to Persistent Root
+
+The obtained shell was confirmed to have the root filesystem mounted read-write. To avoid relying on repeated boot manipulation, root access was made persistent by setting a root password:
+
+passwd
+
+
+This converted temporary execution-context control into legitimate authenticated root access.
+
+Clean Reboot and Normal Login
+
+The system was rebooted normally without modifying GRUB again. Logging in as root using the newly set password succeeded, confirming full and persistent compromise within the system’s intended authentication flow.
+
+Flag Retrieval
+
+With authenticated root access, the flag was located in root’s home directory:
+
+/root/flag.txt
+
+
+This placement reinforces that the challenge’s core objective was earning root access, not hiding the flag.
