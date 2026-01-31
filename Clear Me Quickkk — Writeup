@@ -1,0 +1,9 @@
+Clear Me Quickkk — Writeup
+
+The challenge references an 1810 London hoax, which points to the famous Berners Street Hoax. This elaborate prank involved overwhelming a London street with deliveries and visitors, and it remained a mystery for years.
+
+The culprit was Theodore Hook. Decades later, he effectively confessed by describing the hoax in his semi-autobiographical novel Gilbert Gurney.
+
+Thus, the required flag is:
+
+SECE{gilbert_gurney}
