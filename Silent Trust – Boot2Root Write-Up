@@ -1,0 +1,57 @@
+Silent Trust – Boot2Root Write-Up
+Challenge Intro
+
+Name: Silent Trust
+Category: Boot2Root / Linux
+Difficulty: Medium
+Author: Astra
+
+This challenge simulates a real-world Linux environment where security failures stem from implicit trust in automation and boot-time assumptions, rather than obvious vulnerabilities or weak credentials. No public exploits were required; success depended on understanding Linux trust boundaries.
+
+Initial Access
+
+The provided VM booted normally to a TTY login prompt. Supplied credentials (devops / devops) failed for interactive login, and no network services (SSH/HTTP) were accessible. This indicated that direct user login was intentionally restricted, shifting focus to non-interactive trust paths.
+
+Root Access – Bootloader Trust Abuse
+
+During boot, GRUB was accessible and not password protected. By editing the kernel boot parameters and appending:
+
+init=/bin/bash
+
+
+the system booted directly into a root shell before PAM and authentication were enforced. The root filesystem was then remounted read-write, granting full root access.
+
+The root flag was retrieved from:
+
+/root/root.flag
+
+
+Root Flag:
+
+SECE{capabilities_are_stronger_than_passwords}
+
+
+This demonstrated that boot-time trust overrides all user authentication controls.
+
+User → Root Escalation via Capabilities
+
+Post-analysis of user artifacts revealed a trusted automation binary:
+
+/usr/local/bin/ci-runner
+
+
+Inspection showed it had the Linux capability:
+
+cap_setuid=ep
+
+
+When executed as the devops user, this binary spawned a root shell without sudo or a password. This represented the intended user-level privilege escalation path, abusing Linux capabilities rather than misconfigured sudo.
+
+Further enumeration of CI-related residue uncovered a hidden user flag at:
+
+/home/devops/.cache/.ci/user.flag
+
+
+User Flag:
+
+SECE{trust_is_the_first_vulnerability}
