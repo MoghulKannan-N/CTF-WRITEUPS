@@ -1,0 +1,44 @@
+Title: CyberSync
+
+Objective
+Analyze the provided CyberSync.tar.gz artifact and recover the root flag only.
+
+1. Initial Analysis
+
+CyberSync.tar.gz was identified as a gzip archive containing an OVA.
+
+Extraction revealed CyberSync.ova, indicating a virtual machine image.
+
+2. OVA and Disk Extraction
+
+Extracted the OVA to obtain VM components:
+
+CyberSync-disk1.vmdk (virtual disk)
+
+Converted the VMDK to a raw disk image using qemu-img.
+
+3. Disk and Partition Analysis
+
+Partition table showed a GPT layout with multiple partitions.
+
+The main Linux filesystem was marked as LVM2_member, indicating Logical Volume Management.
+
+4. LVM Recovery
+
+Attached the raw disk as a loop device.
+
+Scanned and identified the LVM setup:
+
+Volume Group: ubuntu-vg
+
+Logical Volume: ubuntu-lv
+
+Activated the volume group and mounted the logical volume.
+
+5. Flag Extraction
+
+Navigated to the mounted filesystem.
+
+Accessed /root with elevated privileges.
+
+Retrieved the root flag from /root/root.txt.
